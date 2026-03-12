@@ -688,7 +688,7 @@ DINGTALK_AGENT_ID=your-dingtalk-agent-id
 3. 获取 AppID 和 AppSecret（ClientSecret）
 4. 获取主机在公网的 IP，配置到 IP 白名单
 
-### 2. 环境变量配置
+### 2. 环境变量配置（单 Bot）
 
 在 `.env` 文件中添加：
 
@@ -696,6 +696,23 @@ DINGTALK_AGENT_ID=your-dingtalk-agent-id
 QQBOT_APP_ID=你的AppID
 QQBOT_CLIENT_SECRET=你的AppSecret
 ```
+
+> 💡 **提示**：单账号配置会自动同步为 `channels.qqbot.accounts.default` 结构。
+
+### 3. 多 Bot 配置（Multi-Bot）
+
+如需配置多个 QQ 机器人，可以使用 `QQBOT_BOTS_JSON` 环境变量。
+
+在 `.env` 文件中添加（单行 JSON）：
+
+```bash
+QQBOT_BOTS_JSON={"default":{"enabled":true,"appId":"111111111","clientSecret":"secret-of-bot-1"},"bot2":{"enabled":true,"appId":"222222222","clientSecret":"secret-of-bot-2"}}
+```
+
+说明：
+- 账号 ID（如 `default`, `bot2`）仅支持小写字母、数字、`-`、`_`。
+- `QQBOT_BOTS_JSON` 会与现有配置深度合并。
+- 若同时配置了单账号环境变量，会写入 `default` 账号，且 `QQBOT_BOTS_JSON` 中的 `default` 优先级更高。
 
 > 💡 **参考项目**：[qqbot](https://github.com/sliverp/qqbot) - QQ 机器人完整实现示例
 
@@ -708,83 +725,48 @@ QQBOT_CLIENT_SECRET=你的AppSecret
 
 1. 访问 [企业微信管理后台](https://work.weixin.qq.com/)
 2. 进入"应用管理"，用 API 模式创建一个或多个"智能机器人"应用
-3. 在每个应用的"接收消息"配置中设置 Token 和 EncodingAESKey
-4. 配置对应回调 URL（见下方单账号/多账号路径说明）
+3. 设置为长连接模式，并保存
 
-### 2. 单账号配置（兼容旧格式）
+### 2. 环境变量配置（单账号）
 
 在 `.env` 文件中添加：
 
 ```bash
-WECOM_TOKEN=your-token
-WECOM_ENCODING_AES_KEY=your-aes-key
+WECOM_BOT_ID=your-bot-id
+WECOM_SECRET=your-secret
+# 可选：配置 Agent (用于主动发消息/动态 Agent)
+WECOM_AGENT_CORP_ID=wwxxx
+WECOM_AGENT_CORP_SECRET=s1
+WECOM_AGENT_ID=1000001
 ```
 
-> 启动后会自动写入 [`channels.wecom.default`](openclaw.json.example:155) 结构，旧配置无需手工迁移。
+> 💡 **提示**：若使用旧版环境变量 `WECOM_TOKEN` 和 `WECOM_ENCODING_AES_KEY`，项目将不可用。
 
 ### 3. 多账号配置（Multi-Bot）
 
-在 [`openclaw.json`](README.md:648) 的 [`channels.wecom`](openclaw.json.example:154) 下使用字典结构，每个 key 为账号 ID（如 `bot1`、`bot2`），每个 value 为该账号独立配置：
+推荐使用 `WECOM_ACCOUNTS_JSON` 环境变量。
 
-```json
-{
-  "channels": {
-    "wecom": {
-      "bot1": {
-        "token": "Bot1 的 Token",
-        "encodingAesKey": "Bot1 的 EncodingAESKey",
-        "adminUsers": ["admin1"],
-        "agent": {
-          "corpId": "企业 CorpID",
-          "corpSecret": "Bot1 应用 Secret",
-          "agentId": 1000001,
-          "token": "Bot1 回调 Token",
-          "encodingAesKey": "Bot1 回调 EncodingAESKey"
-        },
-        "webhooks": {
-          "ops-group": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx"
-        }
-      },
-      "bot2": {
-        "token": "Bot2 的 Token",
-        "encodingAesKey": "Bot2 的 EncodingAESKey",
-        "agent": {
-          "corpId": "企业 CorpID",
-          "corpSecret": "Bot2 应用 Secret",
-          "agentId": 1000002
-        }
-      }
-    }
-  }
-}
-```
-
-### 4. 多账号环境变量配置（Docker Compose）
-
-现在支持直接在 [`.env.example`](.env.example) / `.env` 中通过 `WECOM_BOTS_JSON` 配置多账号，并由 [`docker-compose.yml`](docker-compose.yml) 自动透传到容器。
-
-示例（单行 JSON）：
+在 `.env` 文件中添加（单行 JSON）：
 
 ```bash
-WECOM_BOTS_JSON={"bot1":{"token":"t1","encodingAesKey":"k1","agent":{"corpId":"wwxxx","corpSecret":"s1","agentId":1000001}},"bot2":{"token":"t2","encodingAesKey":"k2","agent":{"corpId":"wwxxx","corpSecret":"s2","agentId":1000002}}}
+WECOM_ACCOUNTS_JSON={"open":{"botId":"aib-open-xxx","secret":"secret-open-xxx","dmPolicy":"open"},"support":{"botId":"aib-support-xxx","secret":"secret-support-xxx","agent":{"corpId":"wwxxx","corpSecret":"s2","agentId":1000002}}}
 ```
 
 说明：
+- 账号 ID（如 `open`, `support`）仅支持小写字母、数字、`-`、`_`。
+- `WECOM_ACCOUNTS_JSON` 会与现有配置深度合并。
+- 启动时会自动检测重复 Token / Agent ID，避免冲突。
 
-- `WECOM_BOTS_JSON` 会与现有 [`channels.wecom`](openclaw.json.example:154) 做深度合并，不会粗暴覆盖整个对象
-- 若同时配置了 `WECOM_TOKEN` / `WECOM_ENCODING_AES_KEY`，会写入 `default` 账号
-- 若 `WECOM_BOTS_JSON` 中也包含 `default`，其字段会覆盖同名字段
+### 4. 其它核心配置
 
-### 5. 多账号规则与回调路径
+| 环境变量 | 说明 | 默认值 |
+|---------|------|--------|
+| `WECOM_DEFAULT_ACCOUNT` | 默认账号 ID | `open` |
+| `WECOM_COMMANDS_ENABLED` | 是否启用内置命令 | `true` |
+| `WECOM_DYNAMIC_AGENTS_ENABLED` | 是否启用动态 Agent | `true` |
+| `WECOM_GROUP_CHAT_ENABLED` | 是否启用群聊支持 | `true` |
+| `WECOM_GROUP_CHAT_REQUIRE_MENTION` | 群聊是否需要 @机器人 | `true` |
 
-- 账号 ID 仅支持小写字母、数字、`-`、`_`
-- 旧单账号结构（`token` 直接写在 `wecom` 下）会自动识别并迁移为 `default` 账号
-- WeCom 机器人回调路径按账号分配：`/webhooks/wecom/{accountId}`，例如 `bot1` 对应 `/webhooks/wecom/bot1`
-- Agent 回调路径按账号分配：`/webhooks/app/{accountId}`，例如 `bot2` 对应 `/webhooks/app/bot2`
-- 动态会话 ID 按账号隔离：`wecom-{accountId}-dm-{userId}`、`wecom-{accountId}-group-{chatId}`
-- 启动时会自动检测重复 Token / Agent ID，避免消息路由冲突
-
-⚠️ 多账号模式下，需要在企业微信后台为每个账号分别配置对应 URL（例如 `/webhooks/wecom/bot1`）。
 
 > 💡 **参考项目**：[openclaw-plugin-wecom](https://github.com/sunnoy/openclaw-plugin-wecom) - 企业微信插件完整实现示例
 

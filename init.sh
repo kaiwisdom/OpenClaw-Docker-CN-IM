@@ -764,11 +764,19 @@ def sync_models(ctx):
 
 def sync_agent_and_tools(ctx):
     ensure_path(ctx.config, ['agents', 'defaults', 'sandbox'])['mode'] = 'off'
+
     tools = ensure_path(ctx.config, ['tools'])
-    tools['profile'] = 'full'
-    ensure_path(tools, ['sessions'])['visibility'] = 'all'
-    ensure_path(tools, ['fs'])['workspaceOnly'] = True
-    print('✅ Agent/工具配置同步完成: sandbox.mode=off, profile=full, sessions.visibility=all, fs.workspaceOnly=true')
+    tools_json = parse_json_object(ctx.env.get('OPENCLAW_TOOLS_JSON'), 'OPENCLAW_TOOLS_JSON')
+
+    if tools_json is not None:
+        deep_merge(tools, tools_json)
+        print('✅ 已从 OPENCLAW_TOOLS_JSON 同步工具配置')
+    else:
+        # 默认配置
+        tools['profile'] = 'full'
+        ensure_path(tools, ['sessions'])['visibility'] = 'all'
+        ensure_path(tools, ['fs'])['workspaceOnly'] = True
+        print('✅ Agent/工具配置同步完成: sandbox.mode=off, profile=full, sessions.visibility=all, fs.workspaceOnly=true')
 
 
 def sync_feishu_channel(ctx, channel):
